@@ -4,7 +4,25 @@ const Sensor = require("../models/Sensor");
 const Alert = require("../models/Alert");
 const socket = require("../socket/socket");
 const { logAudit } = require("../utils/auditLogger");
-const { evaluateAlerts } = require("../utils/alertRules");
+const { evaluateAlerts, mapAlertSeverity } = require("../utils/alertRules");
+
+const processSensorAlerts = async (sensor, io) => {
+    const triggeredAlerts = evaluateAlerts(sensor);
+
+    for (const alertData of triggeredAlerts) {
+        const alert = await Alert.create({
+            title: alertData.title,
+            message: alertData.message,
+            severity: mapAlertSeverity(alertData.severity, alertData.type),
+            type: alertData.type,
+            room: alertData.room
+        });
+
+        if (io) {
+            io.emit("alert:new", { type: alertData.type });
+        }
+    }
+};
 
 /**
  * @openapi
@@ -34,38 +52,7 @@ exports.createSensor = async (req, res) => {
             io.emit("dashboard:update", { type: "sensor-created" });
         }
 
-        if (sensor.temperature > 30) {
-            await Alert.create({
-                title: "High Temperature",
-                message: `Temperature reached ${sensor.temperature}°C in ${sensor.room}`,
-                severity: "high",
-                type: "temperature",
-                room: sensor.room
-            });
-            if (io) io.emit("alert:new", { type: "temperature" });
-        }
-
-        if (sensor.humidity > 80) {
-            await Alert.create({
-                title: "High Humidity",
-                message: `Humidity reached ${sensor.humidity}% in ${sensor.room}`,
-                severity: "medium",
-                type: "humidity",
-                room: sensor.room
-            });
-            if (io) io.emit("alert:new", { type: "humidity" });
-        }
-
-        if (sensor.presence === false && sensor.light > 500) {
-            await Alert.create({
-                title: "Energy Waste",
-                message: `Lights are on while the room is empty in ${sensor.room}`,
-                severity: "high",
-                type: "energy",
-                room: sensor.room
-            });
-            if (io) io.emit("alert:new", { type: "energy" });
-        }
+        await processSensorAlerts(sensor, io);
 
         await logAudit({
             action: "Update",
@@ -190,38 +177,7 @@ exports.updateSensor = async (req, res) => {
             io.emit("dashboard:update", { type: "sensor-updated" });
         }
 
-        if (sensor.temperature > 30) {
-            await Alert.create({
-                title: "High Temperature",
-                message: `Temperature reached ${sensor.temperature}°C in ${sensor.room}`,
-                severity: "high",
-                type: "temperature",
-                room: sensor.room
-            });
-            if (io) io.emit("alert:new", { type: "temperature" });
-        }
-
-        if (sensor.humidity > 80) {
-            await Alert.create({
-                title: "High Humidity",
-                message: `Humidity reached ${sensor.humidity}% in ${sensor.room}`,
-                severity: "medium",
-                type: "humidity",
-                room: sensor.room
-            });
-            if (io) io.emit("alert:new", { type: "humidity" });
-        }
-
-        if (sensor.presence === false && sensor.light > 500) {
-            await Alert.create({
-                title: "Energy Waste",
-                message: `Lights are on while the room is empty in ${sensor.room}`,
-                severity: "high",
-                type: "energy",
-                room: sensor.room
-            });
-            if (io) io.emit("alert:new", { type: "energy" });
-        }
+        await processSensorAlerts(sensor, io);
 
         res.json(sensor);
     } catch (err) {

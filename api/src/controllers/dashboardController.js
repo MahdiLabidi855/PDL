@@ -1,6 +1,19 @@
 const Sensor = require("../models/Sensor");
 const Alert = require("../models/Alert");
+const Device = require("../models/Device");
 
+/**
+ * @openapi
+ * /api/dashboard/statistics:
+ *   get:
+ *     summary: Get dashboard statistics
+ *     tags: [Dashboard]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Dashboard statistics
+ */
 exports.getStatistics = async (req, res) => {
     try {
         const totalSensors = await Sensor.countDocuments();
@@ -213,6 +226,18 @@ exports.getTrends = async (req, res) => {
     }
 };
 
+/**
+ * @openapi
+ * /api/dashboard/live:
+ *   get:
+ *     summary: Get live dashboard data
+ *     tags: [Dashboard]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Live dashboard metrics
+ */
 exports.getLiveDashboard = async (req, res) => {
     try {
         const activeSensors = await Sensor.countDocuments({

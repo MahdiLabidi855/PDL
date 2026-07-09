@@ -116,3 +116,112 @@ exports.heartbeat = async (req, res) => {
         res.status(500).json({ success: false, message: err.message });
     }
 };
+
+// ============ LED CONTROL ============
+
+exports.updateLed = async (req, res) => {
+    try {
+        const { on, color, brightness } = req.body;
+
+        const device = await Device.findByIdAndUpdate(
+            req.params.id,
+            {
+                "ledStatus.on": on,
+                "ledStatus.color": color,
+                "ledStatus.brightness": brightness,
+                "ledStatus.lastUpdated": new Date()
+            },
+            { new: true }
+        );
+
+        if (!device) {
+            return res.status(404).json({ success: false, message: "Device not found" });
+        }
+
+        const io = socket.getIO();
+        if (io) {
+            io.emit("device:led-update", { deviceId: device._id, ledStatus: device.ledStatus });
+            io.emit("dashboard:update", { type: "led-update", device: device._id });
+        }
+
+        await logAudit({
+            action: "Update",
+            entityType: "Device",
+            entityId: device._id.toString(),
+            userId: req.user?.id || null,
+            details: { event: "led-update", ledStatus: device.ledStatus },
+            req
+        });
+
+        res.json({ success: true, data: device.ledStatus });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+exports.getLedStatus = async (req, res) => {
+    try {
+        const device = await Device.findById(req.params.id).select("ledStatus");
+        if (!device) {
+            return res.status(404).json({ success: false, message: "Device not found" });
+        }
+        res.json({ success: true, data: device.ledStatus });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// ============ CARD CONFIG ============
+
+exports.updateConfig = async (req, res) => {
+    try {
+        const { thingSpeakChannelId, thingSpeakApiKey, thingSpeakFieldMapping } = req.body;
+
+        const device = await Device.findByIdAndUpdate(
+            req.params.id,
+            {
+                thingSpeakChannelId,
+                thingSpeakApiKey,
+                thingSpeakFieldMapping
+            },
+            { new: true }
+        );
+
+        if (!device) {
+            return res.status(404).json({ success: false, message: "Device not found" });
+        }
+
+        const io = socket.getIO();
+        if (io) {
+            io.emit("device:config-updated", { deviceId: device._id, config: device.thingSpeakChannelId });
+            io.emit("dashboard:update", { type: "config-updated", device: device._id });
+        }
+
+        await logAudit({
+            action: "Update",
+            entityType: "Device",
+            entityId: device._id.toString(),
+            userId: req.user?.id || null,
+            details: { event: "config-update", channelId: thingSpeakChannelId },
+            req
+        });
+
+        res.json({ success: true, data: device });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+exports.getConfig = async (req, res) => {
+    try {
+        const device = await Device.findById(req.params.id).select(
+            "cardName thingSpeakChannelId thingSpeakApiKey thingSpeakFieldMapping"
+        );
+        if (!device) {
+            return res.status(404).json({ success: false, message: "Device not found" });
+        }
+        res.json({ success: true, data: device });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};

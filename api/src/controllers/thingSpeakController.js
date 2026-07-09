@@ -1,30 +1,32 @@
 const thingSpeakService = require("../services/thingSpeakService");
+const Device = require("../models/Device");
 const socket = require("../socket/socket");
-
-exports.sync = async (req, res) => {
-    try {
-        const result = await thingSpeakService.syncLatestData();
-
-        const io = socket.getIO();
-        if (io) {
-            io.emit("sensor:new-reading", result.latest);
-            io.emit("dashboard:update", { type: "thingspeak-sync" });
-        }
-
-        res.json({
-            success: true,
-            message: "ThingSpeak sync completed",
-            data: result
-        });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
 
 exports.getLatest = async (req, res) => {
     try {
-        const latest = await thingSpeakService.getLatestReading();
-        res.json({ success: true, data: latest });
+        const { deviceId } = req.query;
+        let data;
+
+        if (deviceId) {
+            const device = await Device.findById(deviceId);
+            if (!device) return res.status(404).json({ success: false, message: "Device not found" });
+            data = await thingSpeakService.getLatestReading(
+                device.thingSpeakChannelId,
+                device.thingSpeakApiKey
+            );
+        } else {
+            const devices = await Device.find({ thingSpeakChannelId: { $exists: true, $ne: "" } });
+            data = [];
+            for (const device of devices) {
+                const reading = await thingSpeakService.getLatestReading(
+                    device.thingSpeakChannelId,
+                    device.thingSpeakApiKey
+                );
+                data.push({ device: device.cardName, room: device.room, reading });
+            }
+        }
+
+        res.json({ success: true, data });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -32,8 +34,21 @@ exports.getLatest = async (req, res) => {
 
 exports.getStatus = async (req, res) => {
     try {
-        const status = await thingSpeakService.getSyncStatus();
+        const status = await thingSpeakService.getStatus();
         res.json({ success: true, data: status });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+exports.sync = async (req, res) => {
+    try {
+        const results = await thingSpeakService.syncAllChannels();
+        const io = socket.getIO();
+        if (io) {
+            io.emit("dashboard:update", { type: "thingspeak-sync", count: results.length });
+        }
+        res.json({ success: true, imported: results.length, data: results });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -41,7 +56,18 @@ exports.getStatus = async (req, res) => {
 
 exports.getHistory = async (req, res) => {
     try {
-        const history = await thingSpeakService.getHistoricalData(req.query);
+        const { deviceId, from, to } = req.query;
+        if (!deviceId) return res.status(400).json({ success: false, message: "deviceId is required" });
+
+        const device = await Device.findById(deviceId);
+        if (!device) return res.status(404).json({ success: false, message: "Device not found" });
+
+        const history = await thingSpeakService.getChannelHistory(
+            device.thingSpeakChannelId,
+            device.thingSpeakApiKey,
+            from,
+            to
+        );
         res.json({ success: true, data: history });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

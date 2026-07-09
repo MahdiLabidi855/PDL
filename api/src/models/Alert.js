@@ -14,12 +14,12 @@ const alertSchema = new mongoose.Schema(
         },
         severity: {
             type: String,
-            enum: ["low", "medium", "high", "critical"],
+            enum: ["low", "medium", "high", "critical", "warning"],
             default: "medium"
         },
         type: {
             type: String,
-            enum: ["temperature", "humidity", "energy", "offline", "system"],
+            enum: ["temperature", "humidity", "energy", "battery", "offline", "device_offline", "system"],
             default: "system"
         },
         room: {

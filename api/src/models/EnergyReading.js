@@ -16,11 +16,7 @@ const energyReadingSchema = new mongoose.Schema(
             type: Number,
             default: 0
         },
-        timestamp: {
-            type: Date,
-            required: true,
-            index: true
-        },
+
         isWaste: {
             type: Boolean,
             default: false
@@ -35,7 +31,8 @@ const energyReadingSchema = new mongoose.Schema(
     }
 );
 
-energyReadingSchema.index({ timestamp: 1 });
 energyReadingSchema.index({ room: 1, timestamp: -1 });
+energyReadingSchema.index({ isWaste: 1, timestamp: -1 });
+energyReadingSchema.index({ timestamp: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 60 });
 
 module.exports = mongoose.model("EnergyReading", energyReadingSchema);

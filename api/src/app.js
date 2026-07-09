@@ -7,24 +7,11 @@ const cookieParser = require("cookie-parser");
 const mongoSanitize = require("express-mongo-sanitize");
 
 let swaggerUi = null;
-let swaggerJsdoc = null;
 let swaggerSpec = null;
 
 try {
     swaggerUi = require("swagger-ui-express");
-    swaggerJsdoc = require("swagger-jsdoc");
-    swaggerSpec = swaggerJsdoc({
-        definition: {
-            openapi: "3.0.0",
-            info: {
-                title: "Smart Campus API",
-                version: "1.0.0",
-                description: "API documentation for the Smart Campus platform"
-            },
-            servers: [{ url: "/" }]
-        },
-        apis: ["./src/routes/*.js", "./src/controllers/*.js"]
-    });
+    swaggerSpec = require("./config/swagger");
 } catch (error) {
     console.warn("Swagger docs are unavailable until dependencies are installed:", error.message);
 }
@@ -38,7 +25,7 @@ const recommendationRoutes = require("./routes/recommendationRoutes");
 const energyRoutes = require("./routes/energyRoutes");
 const maintenanceRoutes = require("./routes/maintenanceRoutes");
 const reportRoutes = require("./routes/reportRoutes");
-const firebaseRoutes = require("./routes/firebaseRoutes");
+const thingspeakRoutes = require("./routes/thingspeakRoutes");
 const predictionRoutes = require("./routes/predictionRoutes");
 const mapRoutes = require("./routes/mapRoutes");
 const limiter = require("./middleware/rateLimiter");
@@ -62,7 +49,7 @@ app.use("/api/recommendations", recommendationRoutes);
 app.use("/api/energy", energyRoutes);
 app.use("/api/maintenance", maintenanceRoutes);
 app.use("/reports", reportRoutes);
-app.use("/api/firebase", firebaseRoutes);
+app.use("/api/thingspeak", thingspeakRoutes);
 app.use("/api/prediction", predictionRoutes);
 app.use("/api/map", mapRoutes);
 if (swaggerUi && swaggerSpec) {
