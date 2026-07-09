@@ -3,10 +3,12 @@ const Alert = require("../models/Alert");
 const socket = require("../socket/socket");
 const { logAudit } = require("../utils/auditLogger");
 
+// ============ CRUD ============
+
 exports.getDevices = async (req, res) => {
     try {
-        const devices = await Device.find().sort({ lastSeen: -1 });
-        res.json({ success: true, data: devices });
+        const devices = await Device.find().sort({ createdAt: -1 });
+        res.json({ success: true, count: devices.length, data: devices });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
@@ -20,7 +22,39 @@ exports.createDevice = async (req, res) => {
         if (io) {
             io.emit("device:heartbeat", device);
             io.emit("device:online", device);
-            io.emit("dashboard:update", { type: "device-created" });
+            io.emit("dashboard:update", { type: "device-created", device: device._id });
+        }
+
+        await logAudit({
+            action: "Create",
+            entityType: "Device",
+            entityId: device._id.toString(),
+            userId: req.user?.id || null,
+            details: { cardName: device.cardName, room: device.room },
+            req
+        });
+
+        res.status(201).json({ success: true, data: device });
+    } catch (err) {
+        res.status(400).json({ success: false, message: err.message });
+    }
+};
+
+exports.updateDevice = async (req, res) => {
+    try {
+        const device = await Device.findByIdAndUpdate(
+            req.params.id,
+            req.body,
+            { new: true, runValidators: true }
+        );
+
+        if (!device) {
+            return res.status(404).json({ success: false, message: "Device not found" });
+        }
+
+        const io = socket.getIO();
+        if (io) {
+            io.emit("dashboard:update", { type: "device-updated", device: device._id });
         }
 
         await logAudit({
@@ -28,87 +62,93 @@ exports.createDevice = async (req, res) => {
             entityType: "Device",
             entityId: device._id.toString(),
             userId: req.user?.id || null,
-            details: { event: "create" },
+            details: req.body,
             req
         });
 
-        res.status(201).json({ success: true, data: device });
-    } catch (err) {
-        res.status(500).json({ success: false, message: err.message });
-    }
-};
-
-exports.updateDevice = async (req, res) => {
-    try {
-        const device = await Device.findByIdAndUpdate(req.params.id, req.body, { new: true });
-
-        const io = socket.getIO();
-        if (io) {
-            io.emit("device:heartbeat", device);
-            io.emit("dashboard:update", { type: "device-updated" });
-        }
-
         res.json({ success: true, data: device });
     } catch (err) {
-        res.status(500).json({ success: false, message: err.message });
+        res.status(400).json({ success: false, message: err.message });
     }
 };
 
 exports.deleteDevice = async (req, res) => {
     try {
-        await Device.findByIdAndDelete(req.params.id);
+        const device = await Device.findByIdAndDelete(req.params.id);
+
+        if (!device) {
+            return res.status(404).json({ success: false, message: "Device not found" });
+        }
 
         const io = socket.getIO();
         if (io) {
-            io.emit("device:offline", { id: req.params.id });
-            io.emit("dashboard:update", { type: "device-deleted" });
+            io.emit("device:offline", { deviceId: device._id, room: device.room });
+            io.emit("dashboard:update", { type: "device-deleted", device: device._id });
         }
 
         await logAudit({
             action: "Delete",
             entityType: "Device",
-            entityId: req.params.id,
+            entityId: device._id.toString(),
             userId: req.user?.id || null,
-            details: { event: "delete" },
+            details: { cardName: device.cardName, room: device.room },
             req
         });
 
-        res.json({ success: true, message: "Device deleted" });
+        res.json({ success: true, message: "Device deleted successfully" });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
 };
 
+// ============ HEARTBEAT ============
+
 exports.heartbeat = async (req, res) => {
     try {
-        const { deviceId, battery, status } = req.body;
+        const { deviceId, battery, wifiSignal, firmware } = req.body;
+
         const device = await Device.findOneAndUpdate(
             { deviceId },
             {
+                status: "online",
                 lastSeen: new Date(),
-                status: status || "online",
-                battery: battery || undefined
+                battery: battery ?? device?.battery,
+                wifiSignal: wifiSignal ?? device?.wifiSignal,
+                firmware: firmware ?? device?.firmware
             },
-            { new: true, upsert: true }
+            { upsert: true, new: true }
         );
 
         const io = socket.getIO();
         if (io) {
             io.emit("device:heartbeat", device);
             io.emit("device:online", device);
-            io.emit("dashboard:update", { type: "device-heartbeat" });
+            io.emit("dashboard:update", { type: "heartbeat", device: device._id });
         }
 
-        if (device.battery !== undefined && device.battery < 20) {
-            await Alert.create({
-                title: "Low Battery",
-                message: `Device ${device.deviceId} has low battery (${device.battery}%)`,
-                severity: "high",
-                type: "offline",
-                room: device.room
+        // Auto-generate low battery alert
+        if (battery !== undefined && battery < 20) {
+            const existingAlert = await Alert.findOne({
+                device: device._id,
+                type: "low_battery",
+                status: "active"
             });
-            if (io) io.emit("alert:new", { type: "battery" });
-            if (io) io.emit("maintenance:warning", { deviceId: device.deviceId, battery: device.battery });
+
+            if (!existingAlert) {
+                const alert = await Alert.create({
+                    type: "low_battery",
+                    device: device._id,
+                    room: device.room,
+                    severity: "high",
+                    status: "active",
+                    message: `Low battery on ${device.cardName}: ${battery}%`
+                });
+
+                if (io) {
+                    io.emit("alert:new", alert);
+                    io.emit("maintenance:warning", alert);
+                }
+            }
         }
 
         res.json({ success: true, data: device });
@@ -140,7 +180,10 @@ exports.updateLed = async (req, res) => {
 
         const io = socket.getIO();
         if (io) {
-            io.emit("device:led-update", { deviceId: device._id, ledStatus: device.ledStatus });
+            io.emit("device:led-update", {
+                deviceId: device._id,
+                ledStatus: device.ledStatus
+            });
             io.emit("dashboard:update", { type: "led-update", device: device._id });
         }
 
@@ -193,7 +236,13 @@ exports.updateConfig = async (req, res) => {
 
         const io = socket.getIO();
         if (io) {
-            io.emit("device:config-updated", { deviceId: device._id, config: device.thingSpeakChannelId });
+            io.emit("device:config-updated", {
+                deviceId: device._id,
+                config: {
+                    channelId: thingSpeakChannelId,
+                    fieldMapping: thingSpeakFieldMapping
+                }
+            });
             io.emit("dashboard:update", { type: "config-updated", device: device._id });
         }
 

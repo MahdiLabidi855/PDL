@@ -7,4 +7,3 @@ coverage/
 .vscode/
 dist/
 *.pem
-firebase-service-account-key.json

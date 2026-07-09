@@ -16,7 +16,6 @@ const energyReadingSchema = new mongoose.Schema(
             type: Number,
             default: 0
         },
-
         isWaste: {
             type: Boolean,
             default: false

@@ -8,14 +8,23 @@ let lastSync = null;
 let recordsImported = 0;
 
 // Convert ThingSpeak feed to Sensor format
+// ThingSpeak returns { field1: "24", field2: "60", ... }
+// Device.fieldMapping maps field keys → sensor names: { field1: "temperature", ... }
+// We need the reverse: sensor name → field key
 const normalizeFeed = (feed, fieldMapping, room) => {
+    // Build reverse lookup: sensor name → field key
+    const fieldToSensor = {};
+    Object.entries(fieldMapping || {}).forEach(([fieldKey, sensorName]) => {
+        fieldToSensor[sensorName] = fieldKey;
+    });
+
     return {
         room: room || "Unknown",
-        temperature: Number(feed[fieldMapping.field1 || "field1"] ?? 0),
-        humidity: Number(feed[fieldMapping.field2 || "field2"] ?? 0),
-        light: Number(feed[fieldMapping.field3 || "field3"] ?? 0),
-        presence: Number(feed[fieldMapping.field4 || "field4"] ?? 0) > 0,
-        battery: Number(feed[fieldMapping.field5 || "field5"] ?? 100),
+        temperature: Number(feed[fieldToSensor.temperature || "field1"] ?? 0),
+        humidity: Number(feed[fieldToSensor.humidity || "field2"] ?? 0),
+        light: Number(feed[fieldToSensor.light || "field3"] ?? 0),
+        presence: Number(feed[fieldToSensor.presence || "field4"] ?? 0) > 0,
+        battery: Number(feed[fieldToSensor.battery || "field5"] ?? 100),
         timestamp: feed.created_at ? new Date(feed.created_at) : new Date(),
         lastSeen: new Date()
     };
@@ -45,8 +54,13 @@ exports.syncChannelToMongo = async (device) => {
             device.thingSpeakApiKey
         );
 
-        const normalized = normalizeFeed(feed, device.thingSpeakFieldMapping, device.room);
+        const normalized = normalizeFeed(
+            feed,
+            device.thingSpeakFieldMapping,
+            device.room
+        );
 
+        // Avoid duplicates: check if this reading already exists
         const existing = await Sensor.findOne({
             room: normalized.room,
             timestamp: normalized.timestamp
@@ -56,17 +70,21 @@ exports.syncChannelToMongo = async (device) => {
             const saved = await Sensor.create(normalized);
             recordsImported += 1;
 
-            // Update device lastSeen + battery
+            // Update device status
             await Device.findByIdAndUpdate(device._id, {
                 lastSeen: new Date(),
                 status: "online",
                 battery: normalized.battery
             });
 
+            // Emit real-time events
             const io = socket.getIO();
             if (io) {
                 io.emit("sensor:new-reading", saved);
-                io.emit("dashboard:update", { type: "thingspeak-sync", room: normalized.room });
+                io.emit("dashboard:update", {
+                    type: "thingspeak-sync",
+                    room: normalized.room
+                });
             }
 
             return saved;
@@ -80,7 +98,10 @@ exports.syncChannelToMongo = async (device) => {
 
 // Sync all channels
 exports.syncAllChannels = async () => {
-    const devices = await Device.find({ thingSpeakChannelId: { $exists: true, $ne: "" } });
+    const devices = await Device.find({
+        thingSpeakChannelId: { $exists: true, $ne: "" }
+    });
+
     const results = [];
 
     for (const device of devices) {
@@ -96,8 +117,11 @@ exports.syncAllChannels = async () => {
 exports.getStatus = async () => {
     let connected = false;
     try {
-        const response = await axios.get(`${baseUrl}/status.json`);
-        connected = true;
+        // Ping ThingSpeak with a known public channel
+        const response = await axios.get(`${baseUrl}/channels/1/feeds/last.json`, {
+            timeout: 5000
+        });
+        connected = response.status === 200;
     } catch {
         connected = false;
     }
