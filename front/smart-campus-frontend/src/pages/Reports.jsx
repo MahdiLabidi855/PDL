@@ -3,13 +3,18 @@ import { useState } from "react";
 export default function Reports() {
   const [type, setType] = useState("daily");
   const [date, setDate] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || "http://localhost:5000";
 
   const downloadReport = async () => {
     try {
+      setLoading(true);
+
       const token = localStorage.getItem("token");
 
       const res = await fetch(
-        `http://localhost:5000/reports/pdf?type=${encodeURIComponent(type)}&date=${encodeURIComponent(date)}`,
+        `${API_ORIGIN}/reports/pdf?type=${encodeURIComponent(type)}&date=${encodeURIComponent(date)}`,
         {
           method: "GET",
           headers: {
@@ -24,15 +29,19 @@ export default function Reports() {
 
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
+
       const a = document.createElement("a");
       a.href = url;
       a.download = `${type}-report-${date || "today"}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
+
       window.URL.revokeObjectURL(url);
     } catch (err) {
       alert(err.message || "Download failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -59,8 +68,8 @@ export default function Reports() {
             />
           </div>
 
-          <button className="btn" onClick={downloadReport}>
-            Download PDF Report
+          <button className="btn" onClick={downloadReport} disabled={loading}>
+            {loading ? "Downloading..." : "Download PDF Report"}
           </button>
         </div>
       </div>

@@ -45,7 +45,7 @@ exports.updateDevice = async (req, res) => {
         const device = await Device.findByIdAndUpdate(
             req.params.id,
             req.body,
-            { new: true, runValidators: true }
+            {  returnDocument: "after", runValidators: true }
         );
 
         if (!device) {
@@ -116,7 +116,7 @@ exports.heartbeat = async (req, res) => {
                 wifiSignal: wifiSignal ?? device?.wifiSignal,
                 firmware: firmware ?? device?.firmware
             },
-            { upsert: true, new: true }
+            { upsert: true,  returnDocument: "after" }
         );
 
         const io = socket.getIO();
@@ -139,7 +139,7 @@ exports.heartbeat = async (req, res) => {
                     type: "low_battery",
                     device: device._id,
                     room: device.room,
-                    severity: "high",
+                    severity: "critical",
                     status: "active",
                     message: `Low battery on ${device.cardName}: ${battery}%`
                 });
@@ -171,7 +171,7 @@ exports.updateLed = async (req, res) => {
                 "ledStatus.brightness": brightness,
                 "ledStatus.lastUpdated": new Date()
             },
-            { new: true }
+            {  returnDocument: "after" }
         );
 
         if (!device) {
@@ -227,7 +227,7 @@ exports.updateConfig = async (req, res) => {
                 thingSpeakApiKey,
                 thingSpeakFieldMapping
             },
-            { new: true }
+            {  returnDocument: "after" }
         );
 
         if (!device) {

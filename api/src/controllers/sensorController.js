@@ -168,7 +168,7 @@ exports.updateSensor = async (req, res) => {
         const sensor = await Sensor.findByIdAndUpdate(
             req.params.id,
             req.body,
-            { new: true }
+            {  returnDocument: "after" }
         );
 
         const io = socket.getIO();

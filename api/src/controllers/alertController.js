@@ -40,7 +40,7 @@ exports.createAlert = async (req, res) => {
 
 exports.markAsRead = async (req, res) => {
     try {
-        const alert = await Alert.findByIdAndUpdate(req.params.id, { isRead: true }, { new: true });
+        const alert = await Alert.findByIdAndUpdate(req.params.id, { isRead: true }, {  returnDocument: "after" });
 
         const io = socket.getIO();
         if (io) {
