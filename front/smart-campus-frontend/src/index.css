@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 * {
   box-sizing: border-box;
 }
@@ -20,6 +22,7 @@ button {
 
 input,
 select,
+textarea,
 button {
   padding: 10px;
   border-radius: 8px;
@@ -58,7 +61,7 @@ button {
 }
 
 .sidebar {
-  width: 240px;
+  width: 260px;
   background: #111827;
   color: white;
   padding: 20px;
@@ -74,13 +77,19 @@ button {
   gap: 10px;
 }
 
-.sidebar nav a {
-  padding: 10px;
+.sidebar nav a,
+.sidebar nav button {
+  padding: 10px 12px;
   border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: white;
+  text-align: left;
 }
 
 .sidebar nav a.active,
-.sidebar nav a:hover {
+.sidebar nav a:hover,
+.sidebar nav button:hover {
   background: #2563eb;
 }
 
@@ -117,10 +126,36 @@ button {
   border: none;
 }
 
+.btn-warning {
+  background: #eab308;
+  color: white;
+  border: none;
+}
+
 .form-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  margin-bottom: 12px;
+}
+
+.page-title {
+  margin-bottom: 20px;
+}
+
+.error-box {
+  background: #fee2e2;
+  color: #b91c1c;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.success-box {
+  background: #dcfce7;
+  color: #166534;
+  padding: 12px;
+  border-radius: 8px;
   margin-bottom: 12px;
 }
 

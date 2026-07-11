@@ -1,5 +1,5 @@
-import { Routes, Route, Navigate } from "react-router-dom";
-import { useAuth } from "./context/AuthContext";
+import { Routes, Route } from "react-router-dom";
+import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -7,14 +7,11 @@ import Devices from "./pages/Devices";
 import Alerts from "./pages/Alerts";
 import Recommendations from "./pages/Recommendations";
 import Energy from "./pages/Energy";
-
-function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth();
-
-  if (loading) return <div>Loading...</div>;
-
-  return user ? children : <Navigate to="/login" replace />;
-}
+import Maintenance from "./pages/Maintenance";
+import Prediction from "./pages/Prediction";
+import CampusMap from "./pages/CampusMap";
+import Reports from "./pages/Reports";
+import NotFound from "./pages/NotFound";
 
 export default function App() {
   return (
@@ -75,6 +72,52 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+
+      <Route
+        path="/maintenance"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <Maintenance />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/prediction"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <Prediction />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/map"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <CampusMap />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/reports"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <Reports />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

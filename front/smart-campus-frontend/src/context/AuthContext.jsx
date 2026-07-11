@@ -5,6 +5,22 @@ const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
 
+function parseJwt(token) {
+  try {
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(jsonPayload);
+  } catch {
+    return null;
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -14,7 +30,14 @@ export function AuthProvider({ children }) {
     const savedUser = localStorage.getItem("user");
 
     if (token) {
-      setUser(savedUser ? JSON.parse(savedUser) : { loggedIn: true });
+      if (savedUser && savedUser !== "undefined") {
+        setUser(JSON.parse(savedUser));
+      } else {
+        const decoded = parseJwt(token);
+        const fallbackUser = decoded || { loggedIn: true };
+        localStorage.setItem("user", JSON.stringify(fallbackUser));
+        setUser(fallbackUser);
+      }
     }
 
     setLoading(false);
@@ -24,13 +47,28 @@ export function AuthProvider({ children }) {
     const res = await api.post("/auth/login", { email, password });
     const token = res.data.token;
 
-    if (!token) throw new Error("Invalid login response shape");
+    if (!token) {
+      throw new Error("Invalid login response shape");
+    }
 
     localStorage.setItem("token", token);
 
-    const fakeUser = { loggedIn: true, email };
-    localStorage.setItem("user", JSON.stringify(fakeUser));
-    setUser(fakeUser);
+    const decoded = parseJwt(token);
+    const builtUser = decoded
+      ? {
+          id: decoded.id || decoded._id || decoded.userId || null,
+          email: decoded.email || email,
+          role: decoded.role || "user",
+          loggedIn: true,
+        }
+      : {
+          email,
+          role: "user",
+          loggedIn: true,
+        };
+
+    localStorage.setItem("user", JSON.stringify(builtUser));
+    setUser(builtUser);
 
     return res.data;
   };

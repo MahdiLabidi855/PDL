@@ -13,30 +13,34 @@ export default function Login() {
     role: "admin",
   });
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
- const submit = async (e) => {
-  e.preventDefault();
-  setError("");
+  const submit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
 
-  try {
-    if (isLogin) {
-      await login(form.email, form.password);
-      navigate("/");
-    } else {
-      await register(form.name, form.email, form.password, form.role);
-      alert("Account created. Please login.");
-      setIsLogin(true);
+    try {
+      if (isLogin) {
+        await login(form.email, form.password);
+        navigate("/");
+      } else {
+        await register(form.name, form.email, form.password, form.role);
+        setSuccess("Account created successfully. Please login.");
+        setIsLogin(true);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || "Login failed");
     }
-  } catch (err) {
-    setError(err.response?.data?.message || err.message || "Login failed");
-  }
-};
+  };
+
   return (
-    <div className="container" style={{ maxWidth: 400, marginTop: 80 }}>
+    <div className="container" style={{ maxWidth: 420, marginTop: 80 }}>
       <div className="card">
         <h2>{isLogin ? "Login" : "Register"}</h2>
 
-        {error && <p style={{ color: "red" }}>{error}</p>}
+        {error && <div className="error-box">{error}</div>}
+        {success && <div className="success-box">{success}</div>}
 
         <form onSubmit={submit}>
           {!isLogin && (
@@ -45,6 +49,7 @@ export default function Login() {
               <input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
+                required
               />
             </div>
           )}
@@ -55,6 +60,7 @@ export default function Login() {
               type="email"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
+              required
             />
           </div>
 
@@ -64,8 +70,22 @@ export default function Login() {
               type="password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
+              required
             />
           </div>
+
+          {!isLogin && (
+            <div className="form-group">
+              <label>Role</label>
+              <select
+                value={form.role}
+                onChange={(e) => setForm({ ...form, role: e.target.value })}
+              >
+                <option value="admin">admin</option>
+                <option value="user">user</option>
+              </select>
+            </div>
+          )}
 
           <button className="btn" type="submit">
             {isLogin ? "Login" : "Register"}
