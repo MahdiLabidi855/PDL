@@ -12,10 +12,7 @@ import Prediction from "./pages/Prediction";
 import CampusMap from "./pages/CampusMap";
 import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
-import Prediction from "./pages/Prediction";
-import CampusMap from "./pages/CampusMap";
-import Reports from "./pages/Reports";
-import NotFound from "./pages/NotFound";
+
 export default function App() {
   return (
     <Routes>
@@ -119,50 +116,8 @@ export default function App() {
           </ProtectedRoute>
         }
       />
-<Route
-  path="/maintenance"
-  element={
-    <ProtectedRoute>
-      <Layout>
-        <Maintenance />
-      </Layout>
-    </ProtectedRoute>
-  }
-/>
 
-<Route
-  path="/prediction"
-  element={
-    <ProtectedRoute>
-      <Layout>
-        <Prediction />
-      </Layout>
-    </ProtectedRoute>
-  }
-/>
-
-<Route
-  path="/map"
-  element={
-    <ProtectedRoute>
-      <Layout>
-        <CampusMap />
-      </Layout>
-    </ProtectedRoute>
-  }
-/>
-
-<Route
-  path="/reports"
-  element={
-    <ProtectedRoute>
-      <Layout>
-        <Reports />
-      </Layout>
-    </ProtectedRoute>
-  }
-/>
-     <Route path="*" element={<NotFound />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }
