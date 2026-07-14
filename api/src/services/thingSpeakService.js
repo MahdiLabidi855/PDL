@@ -51,7 +51,8 @@ exports.syncChannelToMongo = async (device) => {
     try {
         const feed = await exports.getLatestReading(
             device.thingSpeakChannelId,
-            device.thingSpeakApiKey
+            device.thingSpeakApiKey,
+            device.thingSpeakReadKey
         );
 
         const normalized = normalizeFeed(

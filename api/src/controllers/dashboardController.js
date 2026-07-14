@@ -260,7 +260,8 @@ exports.getLiveDashboard = async (req, res) => {
                     battery: 1,
                     timestamp: 1,
                 }
-            },
+            },{ $match: { temperature: { $gt: 0, $lt: 50 }, humidity: { $gt: 5, $lt: 99 } } },
+
             { $sort: { room: 1 } }
         ]);
 

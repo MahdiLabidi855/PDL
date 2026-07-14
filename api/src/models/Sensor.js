@@ -30,11 +30,14 @@ const sensorSchema = new mongoose.Schema(
             type: Date,
             required: true
         },
+battery: { type: Number, min: 0, max: 100, default: null },
+
         lastSeen: {
             type: Date,
             default: Date.now
         }
     },
+
     {
         timestamps: true
     }
