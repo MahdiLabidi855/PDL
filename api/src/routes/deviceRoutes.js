@@ -12,7 +12,7 @@ router.delete("/:id", auth, controller.deleteDevice);
 
 // LED control
 router.put("/:id/led", auth, controller.updateLed);
-router.get("/:id/led", controller.getLedStatus);
+router.get("/:id/led", auth, controller.getLedStatus);
 
 // Card config
 router.put("/:id/config", auth, controller.updateConfig);
