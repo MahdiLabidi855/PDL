@@ -3,9 +3,9 @@ import api from "../services/api";
 import socket from "../services/socket";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell
+  ResponsiveContainer, BarChart, Bar,
 } from "recharts";
-import { Thermometer, Droplets, Sun, Users, Activity, Battery } from "lucide-react";
+import { Thermometer, Droplets, Sun, Users, Battery, X, Download } from "lucide-react";
 
 const COLORS = {
   green: "#22c55e", yellow: "#eab308", red: "#ef4444", gray: "#6b7280",
@@ -18,6 +18,21 @@ export default function Dashboard() {
   const [occupancy, setOccupancy] = useState([]);
   const [peakHours, setPeakHours] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showApkBanner, setShowApkBanner] = useState(false);
+
+  // Show APK download prompt on mobile devices
+  useEffect(() => {
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const dismissed = localStorage.getItem("apk_banner_dismissed");
+    if (isMobile && !dismissed) {
+      setShowApkBanner(true);
+    }
+  }, []);
+
+  const dismissApkBanner = () => {
+    setShowApkBanner(false);
+    localStorage.setItem("apk_banner_dismissed", "true");
+  };
 
   const fetchData = async () => {
     try {
@@ -27,10 +42,10 @@ export default function Dashboard() {
         api.get("/dashboard/occupancy"),
         api.get("/dashboard/peak-hours"),
       ]);
-      setLiveData(live.data.data || []);
-      setStats(statistics.data.data || {});
-      setOccupancy(occ.data.data || []);
-      setPeakHours(peak.data.data || []);
+      setLiveData(Array.isArray(live.data.data) ? live.data.data : []);
+      setStats(statistics.data.data && typeof statistics.data.data === "object" ? statistics.data.data : {});
+      setOccupancy(Array.isArray(occ.data.data) ? occ.data.data : []);
+      setPeakHours(Array.isArray(peak.data.data) ? peak.data.data : []);
     } catch (err) {
       console.error("Dashboard error:", err);
     } finally {
@@ -64,20 +79,45 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-800">Dashboard Overview</h1>
+    <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 lg:p-0">
+      {/* APK Download Banner */}
+      {showApkBanner && (
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl p-4 flex items-center justify-between shadow-lg animate-pulse-once">
+          <div className="flex items-center gap-3">
+            <Download size={24} className="shrink-0" />
+            <div>
+              <p className="font-semibold text-sm sm:text-base">Download Smart Campus App</p>
+              <p className="text-xs sm:text-sm text-blue-100">Get the native experience on your phone</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <a
+              href="/smart-campus.apk"
+              download
+              className="bg-white text-blue-600 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-50 transition shrink-0"
+            >
+              Download APK
+            </a>
+            <button onClick={dismissApkBanner} className="text-white/70 hover:text-white p-1">
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Dashboard Overview</h1>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {statCards.map((card) => (
-          <div key={card.label} className="bg-white p-6 rounded-lg shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">{card.label}</p>
-                <p className="text-2xl font-bold mt-1">{card.value}</p>
+          <div key={card.label} className="bg-white p-3 sm:p-6 rounded-lg shadow">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-2">
+              <div className="order-2 sm:order-1">
+                <p className="text-xs sm:text-sm text-gray-500">{card.label}</p>
+                <p className="text-lg sm:text-2xl font-bold mt-1">{card.value}</p>
               </div>
-              <div className={`p-3 rounded-full ${card.color}`}>
-                <card.icon size={24} />
+              <div className={`order-1 sm:order-2 p-2 sm:p-3 rounded-full ${card.color}`}>
+                <card.icon size={20} className="sm:w-6 sm:h-6" />
               </div>
             </div>
           </div>
@@ -85,74 +125,82 @@ export default function Dashboard() {
       </div>
 
       {/* Live Room Cards */}
-      <div>
-        <h2 className="text-lg font-semibold mb-3">Live Room Status</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {liveData.map((room) => (
-            <div key={room.room} className="bg-white p-4 rounded-lg shadow">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="font-semibold text-gray-800">{room.room}</h3>
-                <span
-                  className="px-2 py-1 rounded-full text-xs font-medium"
-                  style={{
-                    backgroundColor: room.presence ? COLORS.green + "20" : COLORS.gray + "20",
-                    color: room.presence ? COLORS.green : COLORS.gray,
-                  }}
-                >
-                  {room.presence ? "Occupied" : "Empty"}
-                </span>
+      {liveData.length > 0 && (
+        <div>
+          <h2 className="text-base sm:text-lg font-semibold mb-3">Live Room Status</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            {liveData.map((room) => (
+              <div key={room.room} className="bg-white p-3 sm:p-4 rounded-lg shadow">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="font-semibold text-gray-800 text-sm sm:text-base">{room.room}</h3>
+                  <span
+                    className="px-2 py-1 rounded-full text-xs font-medium"
+                    style={{
+                      backgroundColor: room.presence ? COLORS.green + "20" : COLORS.gray + "20",
+                      color: room.presence ? COLORS.green : COLORS.gray,
+                    }}
+                  >
+                    {room.presence ? "Occupied" : "Empty"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm">
+                  <div className="flex items-center gap-1">
+                    <Thermometer size={14} className="text-orange-500 shrink-0" />
+                    {room.temperature}°C
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Droplets size={14} className="text-blue-500 shrink-0" />
+                    {room.humidity}%
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Sun size={14} className="text-yellow-500 shrink-0" />
+                    {room.light} lux
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Battery size={14} className="text-green-500 shrink-0" />
+                    {room.battery || "N/A"}%
+                  </div>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="flex items-center gap-1">
-                  <Thermometer size={14} className="text-orange-500" />
-                  {room.temperature}°C
-                </div>
-                <div className="flex items-center gap-1">
-                  <Droplets size={14} className="text-blue-500" />
-                  {room.humidity}%
-                </div>
-                <div className="flex items-center gap-1">
-                  <Sun size={14} className="text-yellow-500" />
-                  {room.light} lux
-                </div>
-                <div className="flex items-center gap-1">
-                  <Battery size={14} className="text-green-500" />
-                  {room.battery || "N/A"}%
-                </div>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="font-semibold mb-4">Occupancy by Room</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={occupancy}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="room" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="occupancyRate" fill={COLORS.blue} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+      {(occupancy.length > 0 || peakHours.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          {occupancy.length > 0 && (
+            <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
+              <h3 className="font-semibold mb-4 text-sm sm:text-base">Occupancy by Room</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={occupancy}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="room" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Bar dataKey="occupancyRate" fill={COLORS.blue} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
 
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="font-semibold mb-4">Peak Hours</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={peakHours}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="hour" />
-              <YAxis />
-              <Tooltip />
-              <Line type="monotone" dataKey="occupancy" stroke={COLORS.purple} strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
+          {peakHours.length > 0 && (
+            <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
+              <h3 className="font-semibold mb-4 text-sm sm:text-base">Peak Hours</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <LineChart data={peakHours}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="hour" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="occupancy" stroke={COLORS.purple} strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
 }
