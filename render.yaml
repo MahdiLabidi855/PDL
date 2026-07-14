@@ -1,0 +1,37 @@
+services:
+  # ===== Backend API =====
+  - type: web
+    name: smart-campus-api
+    env: node
+    rootDir: api
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: CLIENT_URL
+        value: https://smart-campus-frontend.onrender.com
+
+  # ===== Frontend (static site) =====
+  - type: web
+    name: smart-campus-frontend
+    env: static
+    rootDir: front/smart-campus-frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    pullRequestPreviewsEnabled: false
+    envVars:
+      - key: VITE_API_URL
+        value: https://smart-campus-api-y8qy.onrender.com/api
+      - key: VITE_SOCKET_URL
+        value: https://smart-campus-api-y8qy.onrender.com
