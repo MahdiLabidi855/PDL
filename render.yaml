@@ -35,3 +35,5 @@ services:
         value: https://smart-campus-api-y8qy.onrender.com/api
       - key: VITE_SOCKET_URL
         value: https://smart-campus-api-y8qy.onrender.com
+      - key: VITE_API_ORIGIN
+        value: https://smart-campus-api-y8qy.onrender.com
