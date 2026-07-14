@@ -1,6 +1,7 @@
 const Device = require("../models/Device");
 const Alert = require("../models/Alert");
 const socket = require("../socket/socket");
+const axios = require('axios');
 const { logAudit } = require("../utils/auditLogger");
 
 // ============ CRUD ============
@@ -105,19 +106,24 @@ exports.deleteDevice = async (req, res) => {
 
 exports.heartbeat = async (req, res) => {
     try {
-        const { deviceId, battery, wifiSignal, firmware } = req.body;
+        const { deviceId, battery, wifiSignal, firmware , thingspeakChannelId, thingspeakReadKey } = req.body;
+  const updateFields = {
+      status: "online",
+      lastSeen: new Date(),
+    };
+     if (battery    !== undefined) updateFields.battery    = battery;
+    if (wifiSignal !== undefined) updateFields.wifiSignal = wifiSignal;
+    if (firmware   !== undefined) updateFields.firmware   = firmware;
 
-        const device = await Device.findOneAndUpdate(
-            { deviceId },
-            {
-                status: "online",
-                lastSeen: new Date(),
-                battery: battery ?? device?.battery,
-                wifiSignal: wifiSignal ?? device?.wifiSignal,
-                firmware: firmware ?? device?.firmware
-            },
-            { upsert: true,  returnDocument: "after" }
-        );
+    // Save ThingSpeak credentials from ESP32
+    if (thingspeakChannelId) updateFields.thingSpeakChannelId = thingspeakChannelId;
+    if (thingspeakReadKey)   updateFields.thingSpeakReadKey   = thingspeakReadKey;
+
+          const device = await Device.findOneAndUpdate(
+      { deviceId },
+      updateFields,
+      { upsert: true, returnDocument: "after" }
+    );
 
         const io = socket.getIO();
         if (io) {

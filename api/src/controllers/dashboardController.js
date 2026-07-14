@@ -54,22 +54,16 @@ exports.getStatistics = async (req, res) => {
                 totalSensors,
                 activeSensors,
                 offlineSensors,
-                totalReadings,
-                averageTemperature: Number(averageTemperature),
-                averageHumidity: Number(averageHumidity),
-                averageLight: Number(averageLight),
+                avgTemperature: Number(averageTemperature),  // ← was averageTemperature
+                avgHumidity: Number(averageHumidity),      // ← was averageHumidity
+                avgLight: Number(averageLight),          // ← was averageLight
+                occupancyRate: totalSensors > 0
+                    ? Math.round((occupiedRooms / totalSensors) * 100)
+                    : 0,                                         // ← was missing
                 occupiedRooms,
                 emptyRooms,
-                energyToday: Number((totalSensors * 0.6).toFixed(2)),
-                peakHour: "10:00",
-                mostUsedRoom: "Library",
-                leastUsedRoom: "Lab3",
                 criticalAlerts,
                 alertsToday: todayAlerts,
-                activeSensors,
-                offlineSensors,
-                occupiedRooms,
-                emptyRooms,
                 batteryWarnings,
                 maintenanceRequired
             }
@@ -238,27 +232,39 @@ exports.getTrends = async (req, res) => {
  *       200:
  *         description: Live dashboard metrics
  */
+// controllers/dashboardController.js — replace getLiveDashboard
 exports.getLiveDashboard = async (req, res) => {
     try {
-        const activeSensors = await Sensor.countDocuments({
-            lastSeen: { $gte: new Date(Date.now() - 5 * 60 * 1000) }
-        });
+        // Get the latest reading per room
+        const liveRooms = await Sensor.aggregate([
+            { $sort: { timestamp: -1 } },
+            {
+                $group: {
+                    _id: "$room",
+                    temperature: { $first: "$temperature" },
+                    humidity: { $first: "$humidity" },
+                    light: { $first: "$light" },
+                    presence: { $first: "$presence" },
+                    battery: { $first: "$battery" },
+                    timestamp: { $first: "$timestamp" },
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    room: "$_id",
+                    temperature: { $round: ["$temperature", 1] },
+                    humidity: { $round: ["$humidity", 1] },
+                    light: { $round: ["$light", 0] },
+                    presence: 1,
+                    battery: 1,
+                    timestamp: 1,
+                }
+            },
+            { $sort: { room: 1 } }
+        ]);
 
-        const occupiedRooms = await Sensor.countDocuments({ presence: true });
-        const alerts = await Alert.countDocuments({ isRead: false });
-
-        const latestSensor = await Sensor.findOne().sort({ timestamp: -1 });
-
-        res.json({
-            success: true,
-            data: {
-                activeSensors,
-                occupiedRooms,
-                temperature: latestSensor ? latestSensor.temperature : 0,
-                humidity: latestSensor ? latestSensor.humidity : 0,
-                alerts
-            }
-        });
+        res.json({ success: true, data: liveRooms });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }

@@ -62,7 +62,8 @@ const deviceSchema = new mongoose.Schema(
         thingSpeakApiKey: {
             type: String,
             default: ""
-        },
+        },  // Write key
+thingSpeakReadKey:   { type: String, default: "" },
         thingSpeakFieldMapping: {
             field1: { type: String, default: "temperature" },
             field2: { type: String, default: "humidity" },
