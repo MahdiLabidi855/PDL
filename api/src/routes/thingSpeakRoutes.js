@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth");
 const admin = require("../middleware/admin");
-const controller = require("../controllers/thingspeakController");
+const controller = require("../controllers/thingSpeakController");
 
 router.get("/latest", auth, controller.getLatest);
 router.get("/status", auth, controller.getStatus);
