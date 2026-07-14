@@ -8,7 +8,10 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "seed": "node scripts/seed-db.js",
-    "clear:seed": "node scripts/clear-db.js"
+    "clear:seed": "node scripts/clear-db.js",
+    "seed:sim": "node scripts/simulationSeed.js",
+    "live:sim": "node scripts/liveSimulation.js"
+
   },
   "keywords": [],
   "author": "",

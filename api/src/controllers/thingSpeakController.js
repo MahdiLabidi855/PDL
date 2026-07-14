@@ -2,6 +2,9 @@ const thingSpeakService = require("../services/thingSpeakService");
 const Device = require("../models/Device");
 const socket = require("../socket/socket");
 
+// Use read key if available, fall back to write key
+const getReadKey = (device) => device.thingSpeakReadKey || device.thingSpeakApiKey;
+
 exports.getLatest = async (req, res) => {
     try {
         const { deviceId } = req.query;
@@ -12,7 +15,7 @@ exports.getLatest = async (req, res) => {
             if (!device) return res.status(404).json({ success: false, message: "Device not found" });
             data = await thingSpeakService.getLatestReading(
                 device.thingSpeakChannelId,
-                device.thingSpeakApiKey
+                getReadKey(device)
             );
         } else {
             const devices = await Device.find({ thingSpeakChannelId: { $exists: true, $ne: "" } });
@@ -20,7 +23,7 @@ exports.getLatest = async (req, res) => {
             for (const device of devices) {
                 const reading = await thingSpeakService.getLatestReading(
                     device.thingSpeakChannelId,
-                    device.thingSpeakApiKey
+                    getReadKey(device)
                 );
                 data.push({ device: device.cardName, room: device.room, reading });
             }
@@ -64,7 +67,7 @@ exports.getHistory = async (req, res) => {
 
         const history = await thingSpeakService.getChannelHistory(
             device.thingSpeakChannelId,
-            device.thingSpeakApiKey,
+            getReadKey(device),
             from,
             to
         );
