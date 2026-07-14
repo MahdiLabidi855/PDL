@@ -1,0 +1,35 @@
+services:
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  seed:
+    build: ./api
+    depends_on: [mongo]
+    environment:
+      - MONGO_URI=mongodb://mahdilabidi_db_user:p2lYcXIe2hc6RPMy@ac-p7mne0l-shard-00-00.gy9demh.mongodb.net:27017,ac-p7mne0l-shard-00-01.gy9demh.mongodb.net:27017,ac-p7mne0l-shard-00-02.gy9demh.mongodb.net:27017/?ssl=true&replicaSet=atlas-h60n0m-shard-0&authSource=admin&appName=smart-campus
+    command: npm run seed:sim
+
+  api:
+    build: ./api
+    depends_on: [mongo]
+    ports:
+      - "5000:5000"
+    environment:
+      - MONGO_URI=mongodb://mahdilabidi_db_user:p2lYcXIe2hc6RPMy@ac-p7mne0l-shard-00-00.gy9demh.mongodb.net:27017,ac-p7mne0l-shard-00-01.gy9demh.mongodb.net:27017,ac-p7mne0l-shard-00-02.gy9demh.mongodb.net:27017/?ssl=true&replicaSet=atlas-h60n0m-shard-0&authSource=admin&appName=smart-campus
+      - JWT_SECRET=9f8Kp2Qm7VxL4NtR1WsC6YdB3HjUeAqZ
+      - PORT=5000
+
+  simulate:
+    build: ./api
+    depends_on: [seed, api]
+    environment:
+      - MONGO_URI=mongodb://mahdilabidi_db_user:p2lYcXIe2hc6RPMy@ac-p7mne0l-shard-00-00.gy9demh.mongodb.net:27017,ac-p7mne0l-shard-00-01.gy9demh.mongodb.net:27017,ac-p7mne0l-shard-00-02.gy9demh.mongodb.net:27017/?ssl=true&replicaSet=atlas-h60n0m-shard-0&authSource=admin&appName=smart-campus
+    command: npm run simulate
+    # This keeps generating live data — stop with docker compose stop simulate
+
+volumes:
+  mongo-data:
