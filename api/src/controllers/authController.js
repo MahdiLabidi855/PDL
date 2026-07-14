@@ -5,7 +5,7 @@ const { logAudit } = require("../utils/auditLogger");
 
 exports.register = async (req, res) => {
     try {
-        const { name, email, password } = req.body;
+        const { name, email, password, role } = req.body;
 
         const exist = await User.findOne({ email });
 
@@ -20,11 +20,12 @@ exports.register = async (req, res) => {
         const user = await User.create({
             name,
             email,
-            password: hashed
+            password: hashed,
+            role: role || "user"
         });
 
         await logAudit({
-            action: "Login",
+            action: "Register",
             entityType: "User",
             entityId: user._id.toString(),
             userId: user._id,
@@ -36,7 +37,7 @@ exports.register = async (req, res) => {
             message: "User created"
         });
     } catch (err) {
-        res.status(500).json(err);
+        res.status(500).json({ success: false, message: err.message });
     }
 };
 
@@ -84,6 +85,6 @@ exports.login = async (req, res) => {
             token
         });
     } catch (err) {
-        res.status(500).json(err);
+        res.status(500).json({ success: false, message: err.message });
     }
 };

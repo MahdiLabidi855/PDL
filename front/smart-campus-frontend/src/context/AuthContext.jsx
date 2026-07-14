@@ -73,7 +73,7 @@ export function AuthProvider({ children }) {
     return res.data;
   };
 
-  const register = async (name, email, password, role = "admin") => {
+    const register = async (name, email, password, role = "user") => {
     const res = await api.post("/auth/register", {
       name,
       email,

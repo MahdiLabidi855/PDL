@@ -4,17 +4,27 @@ import { AlertTriangle, CheckCircle, Bell } from "lucide-react";
 
 export default function Alerts() {
   const [alerts, setAlerts] = useState([]);
+  const [error, setError] = useState("");
 
   const loadAlerts = async () => {
-    const res = await api.get("/alerts");
-    setAlerts(Array.isArray(res.data.data) ? res.data.data : []);
+    try {
+      const res = await api.get("/alerts");
+      setAlerts(Array.isArray(res.data.data) ? res.data.data : []);
+      setError("");
+    } catch (err) {
+      setError(err.response?.data?.message || "Erreur de chargement des alertes");
+    }
   };
 
   useEffect(() => { loadAlerts(); }, []);
 
   const resolveAlert = async (id) => {
-    await api.put(`/alerts/${id}/resolve`);
-    loadAlerts();
+    try {
+      await api.put(`/alerts/${id}/resolve`);
+      loadAlerts();
+    } catch (err) {
+      setError(err.response?.data?.message || "Échec de la résolution");
+    }
   };
 
   const severityStyle = {
@@ -26,6 +36,8 @@ export default function Alerts() {
   return (
     <div className="space-y-6">
       <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Alertes</h1>
+
+      {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>}
 
       {alerts.length === 0 ? (
         <div className="text-center py-12 text-gray-400">
@@ -45,11 +57,11 @@ export default function Alerts() {
                     <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-500">
                       <span>Salle: {alert.room}</span>
                       <span>Sévérité: <span className="font-medium">{alert.severity}</span></span>
-                      <span>Statut: <span className="font-medium">{alert.status}</span></span>
+                      <span>Statut: <span className="font-medium">{alert.status || (alert.isRead ? "resolved" : "active")}</span></span>
                     </div>
                   </div>
                 </div>
-                {alert.status !== "resolved" && (
+                {(alert.status || (alert.isRead ? "resolved" : "active")) !== "resolved" && (
                   <button onClick={() => resolveAlert(alert._id)} className="flex items-center gap-1 bg-green-100 text-green-700 hover:bg-green-200 px-3 py-1.5 rounded-lg text-xs font-medium transition shrink-0">
                     <CheckCircle size={14} /> Résoudre
                   </button>

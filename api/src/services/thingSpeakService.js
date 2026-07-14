@@ -49,10 +49,10 @@ exports.getChannelHistory = async (channelId, apiKey, startDate, endDate) => {
 // Sync one channel to MongoDB
 exports.syncChannelToMongo = async (device) => {
     try {
+        const readKey = device.thingSpeakReadKey || device.thingSpeakApiKey;
         const feed = await exports.getLatestReading(
             device.thingSpeakChannelId,
-            device.thingSpeakApiKey,
-            device.thingSpeakReadKey
+           readKey
         );
 
         const normalized = normalizeFeed(

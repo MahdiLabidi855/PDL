@@ -26,6 +26,11 @@ const alertSchema = new mongoose.Schema(
             type: String,
             trim: true
         },
+        status: {
+            type: String,
+            enum: ["active", "resolved"],
+            default: "active"
+        },
         isRead: {
             type: Boolean,
             default: false
@@ -41,6 +46,7 @@ const alertSchema = new mongoose.Schema(
 );
 
 alertSchema.index({ isRead: 1 });
+alertSchema.index({ status: 1 });
 alertSchema.index({ severity: 1 });
 alertSchema.index({ createdAt: -1 });
 

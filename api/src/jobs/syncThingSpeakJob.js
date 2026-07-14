@@ -1,7 +1,7 @@
 const cron           = require("node-cron");
 const axios          = require("axios");
 const thingSpeakService = require("../services/thingSpeakService");
-const socket         = require("../socket/socket");
+const { baseUrl }    = require("../config/thingspeak");
 const Device         = require("../models/Device");
 
 const startSyncJob = () => {
@@ -14,19 +14,13 @@ const startSyncJob = () => {
             if (results.length > 0) {
                 console.log(`🔄 ThingSpeak sync: ${results.length} readings imported`);
 
-                // ── Emit socket events for live dashboard ──────────────
-                const io = socket.getIO();
-                if (io) {
-                    results.forEach(reading => {
-                        io.emit("sensor:new-reading", reading);
-                    });
-                    io.emit("dashboard:update", { type: "thingspeak-sync" });
-                }
+                // Socket events are already emitted by thingSpeakService.syncChannelToMongo
+                // Do NOT re-emit here — that causes duplicate dashboard refreshes
 
                 // ── Auto-update LED color based on sensor conditions ───
                 for (const reading of results) {
                     const device = await Device.findOne({ room: reading.room });
-                    if (!device || !device.ledStatus?.on) continue; // skip if LED is off
+                    if (!device || !device.ledStatus?.on) continue;
 
                     let color = 'green', brightness = 200;
                     if      (reading.temperature > 30)  { color = 'red';    brightness = 255; }
@@ -36,17 +30,16 @@ const startSyncJob = () => {
 
                     const field6 = `1:${color}:${brightness}`;
 
-                    // Write to ThingSpeak field6
+                    // Write to ThingSpeak field6 using configured baseUrl (HTTPS)
                     try {
                         await axios.get(
-                            `http://api.thingspeak.com/update?api_key=${device.thingSpeakApiKey}&field6=${field6}`,
+                            `${baseUrl}/update?api_key=${device.thingSpeakApiKey}&field6=${field6}`,
                             { timeout: 8000 }
                         );
                     } catch (tsErr) {
                         console.warn(`[LED sync] ThingSpeak write failed for ${device.room}:`, tsErr.message);
                     }
 
-                    // Sync to MongoDB
                     await Device.findByIdAndUpdate(device._id, {
                         'ledStatus.color':      color,
                         'ledStatus.brightness': brightness,

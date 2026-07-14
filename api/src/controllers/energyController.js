@@ -101,28 +101,27 @@ exports.getWasteEnergy = async (req, res) => {
         res.status(500).json({ success: false, message: err.message });
     }
 };
-
 exports.getEnergyByRoom = async (req, res) => {
     try {
         const rooms = await EnergyReading.aggregate([
             {
                 $group: {
                     _id: "$room",
-                    totalEnergy: { $sum: "$power" },
+                    totalPower: { $sum: "$power" },
                     totalDuration: { $sum: "$duration" },
-                    wasteCount: { $sum: { $cond: ["$isWaste", 1, 0] } }
+                    wasteEvents: { $sum: { $cond: ["$isWaste", 1, 0] } }
                 }
             },
             {
                 $project: {
                     room: "$_id",
-                    totalEnergy: 1,
+                    totalPower: 1,
                     totalDuration: 1,
-                    wasteCount: 1,
+                    wasteEvents: 1,
                     _id: 0
                 }
             },
-            { $sort: { totalEnergy: -1 } }
+            { $sort: { totalPower: -1 } }
         ]);
 
         res.json({ success: true, data: rooms });

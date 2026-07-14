@@ -19,11 +19,12 @@ exports.getMaintenance = async (req, res) => {
             }
 
             return {
-                sensor: device.deviceId,
+                deviceId: device.deviceId,
+                cardName: device.cardName,
                 battery: device.battery,
                 firmware: device.firmware,
                 health,
-                wifi: device.wifiSignal || "N/A",
+                wifiSignal: device.wifiSignal ?? "N/A",
                 lastSeen: device.lastSeen,
                 recommendation
             };

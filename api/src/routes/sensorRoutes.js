@@ -1,5 +1,4 @@
 const express = require("express");
-
 const router = express.Router();
 const auth = require("../middleware/auth");
 const admin = require("../middleware/admin");
@@ -22,13 +21,13 @@ const controller = require("../controllers/sensorController");
 router.get("/", auth, controller.getAllSensors);
 router.post("/", auth, validateSensor, controller.createSensor);
 router.post("/import", auth, admin, upload.single("file"), controller.importExcel);
-router.get("/", auth, controller.getAllSensors);
 router.get("/active", auth, controller.getActiveSensors);
 router.get("/export", auth, controller.exportExcel);
+// Bulk routes BEFORE /:id to avoid shadowing
+router.put("/bulk", auth, admin, controller.bulkUpdate);
+router.delete("/bulk", auth, admin, controller.bulkDelete);
 router.get("/:id", auth, controller.getSensor);
 router.put("/:id", auth, validateSensor, controller.updateSensor);
-router.put("/bulk", auth, admin, controller.bulkUpdate);
 router.delete("/:id", auth, controller.deleteSensor);
-router.delete("/bulk", auth, admin, controller.bulkDelete);
 
 module.exports = router;

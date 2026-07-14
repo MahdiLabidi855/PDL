@@ -1,18 +1,6 @@
 const Alert = require("../models/Alert");
 const socket = require("../socket/socket");
 
-/**
- * @openapi
- * /api/alerts:
- *   get:
- *     summary: List alerts
- *     tags: [Alerts]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Alert list
- */
 exports.getAlerts = async (req, res) => {
     try {
         const alerts = await Alert.find().sort({ createdAt: -1 });
@@ -40,7 +28,11 @@ exports.createAlert = async (req, res) => {
 
 exports.markAsRead = async (req, res) => {
     try {
-        const alert = await Alert.findByIdAndUpdate(req.params.id, { isRead: true }, {  returnDocument: "after" });
+        const alert = await Alert.findByIdAndUpdate(
+            req.params.id,
+            { isRead: true, status: "resolved" },
+            { returnDocument: "after" }
+        );
 
         const io = socket.getIO();
         if (io) {
