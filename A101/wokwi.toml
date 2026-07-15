@@ -1,0 +1,7 @@
+# Wokwi project configuration for the ESP32 + DHT22 simulation
+# This project is driven by the Arduino sketch and the diagram definition.
+[wokwi]
+version = 1
+firmware = ".pio/build/esp32/firmware.bin"
+elf = ".pio/build/esp32/firmware.elf"
+internet = true
