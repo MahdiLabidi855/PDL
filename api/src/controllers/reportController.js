@@ -1,108 +1,113 @@
-const fs = require("fs");
-const path = require("path");
-const PDFDocument = require("pdfkit");
 const Sensor = require("../models/Sensor");
 const Alert = require("../models/Alert");
 
-const uploadsDir = path.join(__dirname, "../../uploads");
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
+function getDateRange(type = "daily", date) {
+  const reportDate = date ? new Date(date) : new Date();
+
+  let start;
+  let end;
+
+  if (type === "monthly") {
+    start = new Date(reportDate.getFullYear(), reportDate.getMonth(), 1, 0, 0, 0, 0);
+    end = new Date(reportDate.getFullYear(), reportDate.getMonth() + 1, 0, 23, 59, 59, 999);
+  } else {
+    start = new Date(reportDate);
+    start.setHours(0, 0, 0, 0);
+    end = new Date(reportDate);
+    end.setHours(23, 59, 59, 999);
+  }
+
+  return {
+    reportDate,
+    start,
+    end,
+  };
 }
 
+exports.getReportPreview = async (req, res) => {
+  try {
+    const { type = "daily", date } = req.query;
+    const { reportDate, start, end } = getDateRange(type, date);
+
+    const sensors = await Sensor.find({
+      timestamp: { $gte: start, $lte: end },
+    })
+      .sort({ timestamp: -1 })
+      .limit(50);
+
+    const alerts = await Alert.find({
+      createdAt: { $gte: start, $lte: end },
+    })
+      .sort({ createdAt: -1 })
+      .limit(20);
+
+    const avgTemperature =
+      sensors.length > 0
+        ? sensors.reduce((sum, s) => sum + (Number(s.temperature) || 0), 0) / sensors.length
+        : 0;
+
+    const avgHumidity =
+      sensors.length > 0
+        ? sensors.reduce((sum, s) => sum + (Number(s.humidity) || 0), 0) / sensors.length
+        : 0;
+
+    const avgLight =
+      sensors.length > 0
+        ? sensors.reduce((sum, s) => sum + (Number(s.light) || 0), 0) / sensors.length
+        : 0;
+
+    const occupiedCount = sensors.filter((s) => s.presence).length;
+    const occupancyRate =
+      sensors.length > 0 ? Math.round((occupiedCount / sensors.length) * 100) : 0;
+
+    res.json({
+      success: true,
+      data: {
+        meta: {
+          type,
+          date: reportDate.toISOString().split("T")[0],
+          generatedAt: new Date().toISOString(),
+        },
+        summary: {
+          sensorCount: sensors.length,
+          alertCount: alerts.length,
+          avgTemperature: Number(avgTemperature.toFixed(1)),
+          avgHumidity: Number(avgHumidity.toFixed(1)),
+          avgLight: Number(avgLight.toFixed(1)),
+          occupancyRate,
+        },
+        sensors: sensors.map((s) => ({
+          id: s._id,
+          room: s.room || "N/A",
+          temperature: s.temperature ?? "-",
+          humidity: s.humidity ?? "-",
+          light: s.light ?? "-",
+          presence: !!s.presence,
+          timestamp: s.timestamp,
+        })),
+        alerts: alerts.map((a) => ({
+          id: a._id,
+          title: a.title || "Alert",
+          message: a.message || "",
+          severity: a.severity || "N/A",
+          status: a.isRead ? "resolved" : "active",
+          room: a.room || "N/A",
+          createdAt: a.createdAt,
+        })),
+      },
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message || "Failed to generate report preview",
+    });
+  }
+};
+
+// On garde cette route pour plus tard si tu veux refaire le PDF
 exports.getPdfReport = async (req, res) => {
-    try {
-        const { type = "daily", date } = req.query;
-        const reportDate = date ? new Date(date) : new Date();
-
-        let sensorQuery = {};
-        let alertQuery = {};
-
-        if (type === "daily") {
-            const start = new Date(reportDate);
-            start.setHours(0, 0, 0, 0);
-            const end = new Date(reportDate);
-            end.setHours(23, 59, 59, 999);
-            sensorQuery = { timestamp: { $gte: start, $lte: end } };
-            alertQuery = { createdAt: { $gte: start, $lte: end } };
-        } else if (type === "monthly") {
-            const start = new Date(reportDate.getFullYear(), reportDate.getMonth(), 1);
-            const end = new Date(reportDate.getFullYear(), reportDate.getMonth() + 1, 0, 23, 59, 59);
-            sensorQuery = { timestamp: { $gte: start, $lte: end } };
-            alertQuery = { createdAt: { $gte: start, $lte: end } };
-        }
-
-        const sensors = await Sensor.find(sensorQuery).sort({ timestamp: -1 }).limit(20);
-        const alerts = await Alert.find(alertQuery).sort({ createdAt: -1 }).limit(10);
-
-        const dateStr = reportDate.toISOString().split("T")[0];
-        const fileName = `report-${type}-${dateStr}-${Date.now()}.pdf`;
-        const filePath = path.join(uploadsDir, fileName);
-
-        const doc = new PDFDocument({ margin: 50, size: "A4" });
-        const stream = fs.createWriteStream(filePath);
-        doc.pipe(stream);
-
-        // Header
-        doc.fontSize(22).fillColor("#1e3a5f").text("Smart Campus Report", { align: "center" });
-        doc.moveDown(0.3);
-        doc.fontSize(14).fillColor("#666").text(`${type === "daily" ? "Daily" : "Monthly"} Report — ${dateStr}`, { align: "center" });
-        doc.moveDown(0.2);
-        doc.fontSize(10).fillColor("#999").text(`Generated: ${new Date().toLocaleString()}`, { align: "center" });
-        doc.moveDown(1);
-
-        // Separator line
-        doc.strokeColor("#1e3a5f").lineWidth(2).moveTo(50, doc.y).lineTo(doc.page.width - 50, doc.y).stroke();
-        doc.moveDown(1);
-
-        // Sensors section
-        doc.fontSize(16).fillColor("#1e3a5f").text(`Sensor Readings (${sensors.length})`);
-        doc.moveDown(0.5);
-
-        if (sensors.length === 0) {
-            doc.fontSize(11).fillColor("#999").text("No sensor data for this period.");
-        } else {
-            sensors.forEach((s, i) => {
-                doc.fontSize(10).fillColor("#333")
-                    .text(`${i + 1}. ${s.room} — Temp: ${s.temperature}°C | Humidity: ${s.humidity}% | Light: ${s.light} | Presence: ${s.presence ? "Yes" : "No"}`);
-            });
-        }
-
-        doc.moveDown(1);
-        doc.strokeColor("#ccc").lineWidth(1).moveTo(50, doc.y).lineTo(doc.page.width - 50, doc.y).stroke();
-        doc.moveDown(1);
-
-        // Alerts section
-        doc.fontSize(16).fillColor("#1e3a5f").text(`Alerts (${alerts.length})`);
-        doc.moveDown(0.5);
-
-        if (alerts.length === 0) {
-            doc.fontSize(11).fillColor("#999").text("No alerts for this period.");
-        } else {
-            alerts.forEach((a, i) => {
-                const status = a.status || (a.isRead ? "resolved" : "active");
-                doc.fontSize(10).fillColor("#333")
-                    .text(`${i + 1}. ${a.title} — Severity: ${a.severity} | Status: ${status} | Room: ${a.room || "N/A"}`);
-            });
-        }
-
-        doc.moveDown(2);
-        doc.fontSize(8).fillColor("#999").text("— End of Report —", { align: "center" });
-
-        doc.end();
-
-        stream.on("finish", () => {
-            res.download(filePath, `${type}-report-${dateStr}.pdf`, (err) => {
-                if (err) console.error("Download error:", err.message);
-                fs.unlink(filePath, (unlinkErr) => {
-                    if (unlinkErr) console.error("Cleanup error:", unlinkErr.message);
-                });
-            });
-        });
-
-        stream.on("error", (err) => {
-            res.status(500).json({ success: false, message: "PDF generation failed" });
-        });
-    } catch (err) {
-        res.status(500).json({ success: false, message: err.message });
-    }
+  return res.status(501).json({
+    success: false,
+    message: "PDF download is temporarily disabled. Use report preview instead.",
+  });
 };
