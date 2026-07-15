@@ -33,7 +33,7 @@ export default function CampusMap() {
         {/* Map Area */}
         <div className="lg:col-span-2 bg-white border border-gray-100 rounded-xl shadow-sm p-5">
           <h3 className="font-semibold text-gray-700 mb-4">Vue d'ensemble</h3>
-          <div className="relative w-full min-h-[400px] bg-gray-50 border border-gray-200 rounded-xl overflow-hidden">
+            <div className="relative w-full h-[500px] bg-gray-50 border border-gray-200 rounded-xl overflow-auto">
             {rooms.map((room, index) => (
               <div
                 key={room.room || index}
